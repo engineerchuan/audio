@@ -12,7 +12,10 @@ from .common_utils import (
     load_params,
     skipIfNoExec,
     get_asset_path,
-    load_wav
+    load_wav,
+    save_wav,
+    get_sinusoid,
+
 )
 
 
@@ -49,9 +52,19 @@ def _run_kaldi(command, input_type, input_value):
 
 
 class Kaldi(TestBaseMixin):
+
+    TEST_FILE_8000_WAV = 'kaldi_file_8000.wav'
+
     def assert_equal(self, output, *, expected, rtol=None, atol=None):
         expected = expected.to(dtype=self.dtype, device=self.device)
         self.assertEqual(output, expected, rtol=rtol, atol=atol)
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        sine_wave = get_sinusoid(sample_rate = 8000, duration = 0.5, n_channels = 1)
+        wave_file = self.get_temp_path(TEST_FILE_8000_WAV)
+        save_wav(sine_wave, wave_file)       
 
     @skipIfNoExec('apply-cmvn-sliding')
     def test_sliding_window_cmn(self):
@@ -73,7 +86,7 @@ class Kaldi(TestBaseMixin):
     @skipIfNoExec('compute-fbank-feats')
     def test_fbank(self, kwargs):
         """fbank should be numerically compatible with compute-fbank-feats"""
-        wave_file = get_asset_path('kaldi_file.wav')
+        wave_file = self.get_temp_path(TEST_FILE_8000_WAV)
         waveform = load_wav(wave_file, normalize=False)[0].to(dtype=self.dtype, device=self.device)
         result = torchaudio.compliance.kaldi.fbank(waveform, **kwargs)
         command = ['compute-fbank-feats'] + _convert_args(**kwargs) + ['scp:-', 'ark:-']
@@ -84,7 +97,7 @@ class Kaldi(TestBaseMixin):
     @skipIfNoExec('compute-spectrogram-feats')
     def test_spectrogram(self, kwargs):
         """spectrogram should be numerically compatible with compute-spectrogram-feats"""
-        wave_file = get_asset_path('kaldi_file.wav')
+        wave_file = self.get_temp_path(TEST_FILE_8000_WAV)
         waveform = load_wav(wave_file, normalize=False)[0].to(dtype=self.dtype, device=self.device)
         result = torchaudio.compliance.kaldi.spectrogram(waveform, **kwargs)
         command = ['compute-spectrogram-feats'] + _convert_args(**kwargs) + ['scp:-', 'ark:-']
@@ -95,7 +108,7 @@ class Kaldi(TestBaseMixin):
     @skipIfNoExec('compute-mfcc-feats')
     def test_mfcc(self, kwargs):
         """mfcc should be numerically compatible with compute-mfcc-feats"""
-        wave_file = get_asset_path('kaldi_file.wav')
+        wave_file = self.get_temp_path(TEST_FILE_8000_WAV)
         waveform = load_wav(wave_file, normalize=False)[0].to(dtype=self.dtype, device=self.device)
         result = torchaudio.compliance.kaldi.mfcc(waveform, **kwargs)
         command = ['compute-mfcc-feats'] + _convert_args(**kwargs) + ['scp:-', 'ark:-']
